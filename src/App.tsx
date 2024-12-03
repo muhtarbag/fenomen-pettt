@@ -13,6 +13,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
     },
   },
 });
@@ -27,7 +28,13 @@ const App = () => {
               <Toaster />
               <Sonner />
               <Layout>
-                <Suspense fallback={<div>Yükleniyor...</div>}>
+                <Suspense 
+                  fallback={
+                    <div className="flex items-center justify-center min-h-screen">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  }
+                >
                   <AppRoutes />
                 </Suspense>
               </Layout>

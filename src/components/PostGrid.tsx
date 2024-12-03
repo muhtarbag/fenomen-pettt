@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import PostCard from "./PostCard";
 
 interface Post {
@@ -14,7 +15,7 @@ interface PostGridProps {
 }
 
 const PostGrid = ({ posts }: PostGridProps) => {
-  const placeholderPosts = [
+  const placeholderPosts = useMemo(() => [
     {
       id: -1,
       username: "fenomenpet",
@@ -39,9 +40,20 @@ const PostGrid = ({ posts }: PostGridProps) => {
       likes: 8,
       isPlaceholder: true
     }
-  ];
+  ], []);
 
-  const allPosts = [...posts, ...(posts.length === 0 ? placeholderPosts : [])];
+  const allPosts = useMemo(() => 
+    [...posts, ...(posts.length === 0 ? placeholderPosts : [])],
+    [posts, placeholderPosts]
+  );
+
+  if (allPosts.length === 0) {
+    return (
+      <div className="col-span-full text-center text-gray-500 mt-8">
+        Henüz onaylanmış gönderi yok. Sokak hayvanlarına yardım fotoğrafınızı ilk paylaşan siz olun!
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
@@ -50,11 +62,6 @@ const PostGrid = ({ posts }: PostGridProps) => {
           <PostCard post={post} />
         </div>
       ))}
-      {allPosts.length === 0 && (
-        <div className="col-span-full text-center text-gray-500 mt-8">
-          Henüz onaylanmış gönderi yok. Sokak hayvanlarına yardım fotoğrafınızı ilk paylaşan siz olun!
-        </div>
-      )}
     </div>
   );
 };

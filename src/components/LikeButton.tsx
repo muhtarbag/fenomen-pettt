@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Heart } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,38 +15,37 @@ const LikeButton = ({ postId, initialLikes, className = "", isPlaceholder = fals
   const [isLiked, setIsLiked] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    const checkLikeStatus = async () => {
-      if (isPlaceholder) return;
-      
-      try {
-        const { data: session } = await supabase.auth.getSession();
-        if (session?.session?.user?.id) {
-          const { data, error } = await supabase
-            .from('submission_likes')
-            .select('*')
-            .eq('submission_id', postId)
-            .eq('user_id', session.session.user.id)
-            .maybeSingle();
-          
-          if (error) {
-            console.error('Error checking like status:', error);
-            return;
-          }
-          
-          setIsLiked(!!data);
-        } else {
-          // Check local storage for anonymous likes
-          const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-          setIsLiked(likedPosts.includes(postId));
+  const checkLikeStatus = useCallback(async () => {
+    if (isPlaceholder) return;
+    
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.user?.id) {
+        const { data, error } = await supabase
+          .from('submission_likes')
+          .select('*')
+          .eq('submission_id', postId)
+          .eq('user_id', session.session.user.id)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error checking like status:', error);
+          return;
         }
-      } catch (error) {
-        console.error('Error checking like status:', error);
+        
+        setIsLiked(!!data);
+      } else {
+        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+        setIsLiked(likedPosts.includes(postId));
       }
-    };
-
-    checkLikeStatus();
+    } catch (error) {
+      console.error('Error checking like status:', error);
+    }
   }, [postId, isPlaceholder]);
+
+  useEffect(() => {
+    checkLikeStatus();
+  }, [checkLikeStatus]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,16 +56,13 @@ const LikeButton = ({ postId, initialLikes, className = "", isPlaceholder = fals
       return;
     }
 
-    if (isProcessing) {
-      return;
-    }
+    if (isProcessing) return;
 
     setIsProcessing(true);
     
     try {
       const { data: session } = await supabase.auth.getSession();
       
-      // Handle anonymous likes with local storage
       if (!session?.session?.user) {
         const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
         
@@ -76,7 +72,6 @@ const LikeButton = ({ postId, initialLikes, className = "", isPlaceholder = fals
           return;
         }
 
-        // First get current likes count
         const { data: submission, error: submissionError } = await supabase
           .from('submissions')
           .select('likes')
@@ -89,7 +84,6 @@ const LikeButton = ({ postId, initialLikes, className = "", isPlaceholder = fals
           return;
         }
 
-        // Update likes count in the database
         const { error: updateError } = await supabase
           .from('submissions')
           .update({ likes: (submission.likes || 0) + 1 })
@@ -97,14 +91,12 @@ const LikeButton = ({ postId, initialLikes, className = "", isPlaceholder = fals
 
         if (updateError) throw updateError;
 
-        // Update local storage and state
         likedPosts.push(postId);
         localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
         toast.success("Beğeni kaydedildi!");
       } else {
-        // Handle authenticated likes
         if (isLiked) {
           const { error } = await supabase
             .from('submission_likes')
@@ -161,12 +153,13 @@ const LikeButton = ({ postId, initialLikes, className = "", isPlaceholder = fals
       onClick={handleLike}
       disabled={isProcessing}
       className={`flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors ${
-        isProcessing ? 'opacity-50' : ''
+        isProcessing ? 'opacity-50 cursor-not-allowed' : ''
       } ${className}`}
+      aria-label={isLiked ? "Beğeniyi kaldır" : "Beğen"}
     >
       <Heart
         size={20}
-        className={`${isLiked ? 'fill-red-500 text-red-500' : 'fill-red-500'}`}
+        className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'fill-none'}`}
       />
       <span className="text-red-500">{likeCount}</span>
     </button>
